@@ -8,10 +8,11 @@
         }
     },
     {
-        "prompt": "What is my name",
-        "name": "fn_greet",
+        "prompt": "What is the sum of 265 and 345?",
+        "name": "fn_add_numbers",
         "parameters": {
-            "name": "user_name"
+            "a": 265,
+            "b": 345
         }
     },
     {
@@ -29,7 +30,7 @@
         }
     },
     {
-        "prompt": "Reverse the string hello",
+        "prompt": "Reverse the string 'hello'",
         "name": "fn_reverse_string",
         "parameters": {
             "s": "hello"
@@ -75,7 +76,7 @@
         }
     },
     {
-        "prompt": "Substitute the word cat with 'dog' in 'The cat sat on the mat with another cat'",
+        "prompt": "Substitute the word 'cat' with 'dog' in 'The cat sat on the mat with another cat'",
         "name": "fn_substitute_string_with_regex",
         "parameters": {
             "source_string": "The cat sat on the mat with another cat",
