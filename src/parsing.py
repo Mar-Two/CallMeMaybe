@@ -3,6 +3,7 @@ import json
 from src.models import FunctionModel, PromptModel
 from pydantic import ValidationError
 import sys
+from pathlib import Path
 
 
 def get_arguments() -> list:
@@ -13,6 +14,8 @@ def get_arguments() -> list:
                        default="data/input/function_calling_tests.json")
     parse.add_argument("--output", default="data/output/function_calls.json")
     args = parse.parse_args()
+    output_path = Path(args.output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     return [args.functions_definition,
             args.input, args.output]
 
@@ -23,7 +26,7 @@ def read_function(path: str) -> list:
             try:
                 data_json = json.load(func_file)
             except json.JSONDecodeError as e:
-                print("Error: The files must be valid Json no trailing commas,"
+                print(f"Error: {path} must be valid Json no trailing commas,"
                       " no comments\n"
                       f"{e}")
                 sys.exit(1)
@@ -50,10 +53,10 @@ def read_prompt(path: str) -> list:
             try:
                 data_json = json.load(prompt_file)
             except json.JSONDecodeError as e:
-                print("Error: The files must be valid Json no trailing commas,"
+                print(f"Error: {path} must be valid Json no trailing commas,"
                       " no comments\n"
                       f"{e}")
-                return []
+                sys.exit(1)
             data_lst = []
             for data in data_json:
                 try:
