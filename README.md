@@ -145,11 +145,11 @@ valid token. The selected token is then appended to both `input_ids`
 
 ### Per-type generation strategy
 
-- **String**: tokens are generated one by one until a token ending
-  with a non-escaped closing quote is produced. Escaped quotes
-  (`\"`) are treated as content and do not terminate the string.
-  A safety limit caps generation length to prevent runaway
-  repetition loops.
+- **String**: tokens are generated one by one until a closing quote
+  is produced. Tokens containing structural characters (such as `}`)
+  or escaped quotes (`\"`) are excluded from the valid set, which
+  keeps string termination simple and deterministic. A safety limit
+  caps generation length to prevent runaway repetition loops.
 - **Number / integer**: tokens are generated one by one as long as
   they remain valid digits.
 - **Boolean**: rather than generating freely, the token representing
@@ -304,18 +304,22 @@ output JSON remains valid in every observed case.
 ### Escaped quotes and structural characters inside strings
 
 Generating string values raised two related issues. First, escaped
-quotes (`\"`) requested as content were initially mistaken for the
+quotes (`\"`) requested as content could be mistaken for the
 string's closing delimiter, since the decoded token ends with `"`.
 Second, the model could "escape" out of a string by emitting a
 closing brace (`}`) mid-value, producing invalid JSON such as an
 unterminated string followed by stray braces.
 
-The fix relies on a single rule: a string ends only when a token
-ends with a quote that is not escaped. Escaped quotes are always
-kept as content. This makes string termination deterministic and
-independent of the model's tendency to drift toward structural
-characters, while still allowing braces to appear legitimately
-inside string content.
+Several approaches to support these characters as legitimate content
+were attempted, but each introduced new edge cases and instability.
+Since the prompts that would genuinely require a raw quote or brace
+as a replacement value are also the ones where the small model
+already hallucinates and produces semantically meaningless output,
+the final decision was to exclude tokens containing `}` or `\"` from
+the valid set entirely. This keeps string termination simple and
+fully deterministic, prioritizing the project's core guarantee
+(100% valid JSON) over support for marginal cases whose output would
+be incorrect regardless.
 
 ### Runaway repetition on degenerate prompts
 
@@ -327,6 +331,7 @@ limit: once reached, the string is force-closed with a quote. This
 guarantees termination and valid JSON even in the worst case, at
 the cost of a semantically truncated value for these rare,
 non-meaningful prompts.
+
 ### Generation speed
 
 Early in development, even the fixed structural tokens (braces,

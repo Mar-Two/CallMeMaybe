@@ -76,7 +76,7 @@ def run_pipeline() -> None:
         start = time.time()
         structure = generate_function_call(p, model, _function,
                                            vocabulary, name_function)
-        print(f"Result: {structure}")
+        print(f"Result: {json.dumps(structure)}")
         end = time.time()
         elapsed = end - start
         print(f'Elapsed: {elapsed:.2f} seconds.')

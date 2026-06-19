@@ -9,6 +9,7 @@ from enum import Enum
 
 class GenerationStep(Enum):
     """Enumerates the steps of the main generation loop."""
+
     OPEN_STRUCTURE = 1
     FUNCTION_NAME = 2
     OPEN_PARAMETERS = 3
@@ -38,17 +39,18 @@ def generate_function_call(prompt: dict[str, Any], model: Small_LLM_Model,
         A dictionary representing the generated function call, with
         keys "prompt", "name", and "parameters".
     """
+
     structure: list[int] = []
     prompt_text = json.dumps(prompt['prompt'])[1:-1]
     first_structure = f"{{\"prompt\": \"{prompt_text}\",\"name\": \""
-    third_structure = "\",\"parameters\": "
+    third_structure = ",\"parameters\": "
 
     tensor = model.encode(f"Functions: {json.dumps(_function)}. "
-                           f"Choose the BEST matching function "
-                           "for this request. "
-                           f"Request: {prompt_text}. "
-                           f"Answer with the function name that best matches"
-                           " the description.")
+                          f"Choose the BEST matching function "
+                          "for this request. "
+                          f"Request: {prompt_text}. "
+                          f"Answer with the function name that best matches."
+                          " the description. choose parameters with the request.")
 
     input_ids = tensor[0].tolist()
 
@@ -58,14 +60,17 @@ def generate_function_call(prompt: dict[str, Any], model: Small_LLM_Model,
     keys_and_types: list[tuple[str, str]] = []
     count_args = 0
     zero_arg = False
+
     def emit_text(text: str) -> None:
         """Encode a fixed text segment and append it to ids/structure."""
+
         ids = model.encode(text)[0].tolist()
         input_ids.extend(ids)
         structure.extend(ids)
 
     def emit_token(token_id: int) -> None:
         """Append a single generated token to ids/structure."""
+
         input_ids.append(int(token_id))
         structure.append(int(token_id))
 
@@ -80,22 +85,21 @@ def generate_function_call(prompt: dict[str, Any], model: Small_LLM_Model,
             next_token = select_token_for_function_name(
                 input_ids, vocabulary, name_function, model)
             str_token = model.decode(next_token)
-
-            str_function_name += str_token
-            emit_token(next_token)
-            if (
-                    len(name_function) == 1
-                    and name_function[0].endswith(str_token)
-                    ):
+            if str_token.endswith('"'):
+                if str_token.startswith('"'):
+                    emit_text('"')
+                else:
+                    emit_token(next_token)
                 step = GenerationStep.OPEN_PARAMETERS
                 continue
+            else:
+                str_function_name += str_token
+            emit_token(next_token)
 
             name_function = [x for x in name_function
                              if x.startswith(str_token)]
             name_function = trim_function_names(len(str_token),
                                                 name_function)
-            if len(name_function) == 1 and not name_function[0]:
-                step = GenerationStep.OPEN_PARAMETERS
 
         if step == GenerationStep.OPEN_PARAMETERS:
             emit_text(third_structure)
@@ -231,17 +235,14 @@ def generate_function_call(prompt: dict[str, Any], model: Small_LLM_Model,
                                 input_ids, vocabulary, model, "string"
                                 )
                             decode_token = model.decode(int(next_token))
-                            print(repr(decode_token), len(decode_token))
                             if (decode_token.endswith('"')):
-                                if decode_token.startswith('"'):
+                                if (decode_token.startswith('"')
+                                        or decode_token.endswith('\\"')):
                                     next_token = select_token_by_type(
                                         input_ids, vocabulary, model, "quotes"
                                         )
                                     emit_token(next_token)
                                     break
-                                elif decode_token.endswith('\\"'):
-                                    emit_token(next_token)
-                                    continue
                                 else:
                                     emit_token(next_token)
                                     break

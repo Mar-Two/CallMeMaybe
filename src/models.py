@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field, ConfigDict, model_validator
 from enum import Enum
 from typing import Dict
-from typing import Self
+from typing_extensions import Self
 
 
 class TypeEnum(Enum):

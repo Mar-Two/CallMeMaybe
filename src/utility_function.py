@@ -28,7 +28,7 @@ def select_token_for_function_name(input_ids: list,
     valid_ids = []
     for name in name_function:
         ids = [token_id for token_id, token_str in vocabulary.items()
-               if name.startswith(token_str)]
+               if name.startswith(token_str) or token_str.endswith('"')]
         valid_ids.extend(ids)
     mask[valid_ids] = logits[valid_ids]
     next_token = np.argmax(mask)
@@ -82,7 +82,7 @@ def select_token_by_type(input_ids: list, vocabulary: dict,
                      if token_str.startswith(data)]
     elif arg_type == "string":
         valid_ids = [token_id for token_id, token_str in vocabulary.items()
-                     if '"' not in token_str or token_str.endswith('"')
+                     if ('"' not in token_str or token_str.endswith('"'))
                      ]
     elif arg_type == "quotes":
         valid_ids = [token_id for token_id, token_str in vocabulary.items()
