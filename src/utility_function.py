@@ -82,8 +82,9 @@ def select_token_by_type(input_ids: list, vocabulary: dict,
                      if token_str.startswith(data)]
     elif arg_type == "string":
         valid_ids = [token_id for token_id, token_str in vocabulary.items()
-                     if ('"' not in token_str or token_str.endswith('"'))
-                     ]
+                     if ('"' not in token_str or token_str.endswith('"')
+                         or (token_str.endswith('\\"') and len(token_str) == 2)
+                         )]
     elif arg_type == "quotes":
         valid_ids = [token_id for token_id, token_str in vocabulary.items()
                      if token_str.startswith('"') and len(token_str) == 1]

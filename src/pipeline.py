@@ -1,4 +1,5 @@
 from src.parsing import read_function, read_prompt, get_arguments
+from src.parsing import chek_duplicated
 import json
 from llm_sdk import Small_LLM_Model  # type: ignore[attr-defined]
 import time
@@ -53,6 +54,7 @@ def run_pipeline() -> None:
     function_path, prompt_path, output_path = get_arguments()
     _function = read_function(function_path)
     prompt = read_prompt(prompt_path)
+    chek_duplicated(_function)
     results: list[dict[str, Any]] = []
 
     if not prompt:
@@ -64,8 +66,8 @@ def run_pipeline() -> None:
         print("Error: functions_definition.json is empty or invalid. "
               "Cannot proceed.", file=sys.stderr)
         sys.exit(1)
-    model = Small_LLM_Model("Qwen/Qwen3-0.6B")
 
+    model = Small_LLM_Model("Qwen/Qwen3-0.6B")
     _function = delete_returns(_function)
     vocabulary = read_vocabulary_files(model)
     name_function = [x['name'] for x in _function]

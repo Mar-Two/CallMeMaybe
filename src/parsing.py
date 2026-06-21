@@ -47,6 +47,7 @@ def read_function(path: str) -> list[dict[str, Any]]:
     """
 
     data_json: list[dict] = []
+    count_data = 0
     try:
         with open(path, 'r') as func_file:
             try:
@@ -59,6 +60,7 @@ def read_function(path: str) -> list[dict[str, Any]]:
             for data in data_json:
                 try:
                     FunctionModel(**data)
+                    count_data += 1
                 except ValidationError as e:
                     for error in e.errors():
                         print(f"Error in function_definition: type "
@@ -70,6 +72,29 @@ def read_function(path: str) -> list[dict[str, Any]]:
         print(f"Error: Cannot read file {path}: {e}", file=sys.stderr)
         sys.exit(1)
     return data_json
+
+
+def chek_duplicated(data: list) -> None:
+    """Check if a function name is duplicated.
+
+    Print an error and stop the program.
+
+    Args:
+        data: list of functions_definitions.
+    """
+
+    check_duplicate = {}
+    for d in data:
+        if d['name'] not in check_duplicate:
+            check_duplicate[d['name']] = 0
+        else:
+            check_duplicate[d['name']] += 1
+
+        if check_duplicate[d['name']] >= 1:
+            print("Error: The function definitions "
+                  "should not contain"
+                  " two functions with the same name.")
+            sys.exit(1)
 
 
 def read_prompt(path: str) -> list[dict[str, Any]]:

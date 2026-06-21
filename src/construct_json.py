@@ -16,6 +16,19 @@ class GenerationStep(Enum):
     ARGUMENTS = 4
 
 
+def formatted_function(_functions: list) -> None:
+    """Formatted function summary instead of raw JSON.
+    Args:
+        _functions: a list of functions definitions in JSON format.
+    """
+
+    str_function = ""
+    for func in _functions:
+        str_function += (f"Function:\nname: {func['name']}\ndescription: "
+                         f"{func['description']}\n\n")
+    return str_function
+
+
 def generate_function_call(prompt: dict[str, Any], model: Small_LLM_Model,
                            _function: list[dict[str, Any]],
                            vocabulary: dict[int, str],
@@ -44,14 +57,12 @@ def generate_function_call(prompt: dict[str, Any], model: Small_LLM_Model,
     prompt_text = json.dumps(prompt['prompt'])[1:-1]
     first_structure = f"{{\"prompt\": \"{prompt_text}\",\"name\": \""
     third_structure = ",\"parameters\": "
-
-    tensor = model.encode(f"Functions: {json.dumps(_function)}. "
-                          f"Choose the BEST matching function "
-                          "for this request. "
-                          f"Request: {prompt_text}. "
-                          f"Answer with the function name that best matches."
-                          " the description. choose parameters with the request.")
-
+    str_function = formatted_function(_function)
+    tensor = model.encode(
+        f"Functions:\n{str_function}\n\n"
+        f"Request: {prompt_text}\n"
+        f"Choose the function whose description best matches the request."
+        )
     input_ids = tensor[0].tolist()
 
     str_function_name = ""
@@ -81,7 +92,6 @@ def generate_function_call(prompt: dict[str, Any], model: Small_LLM_Model,
             step = GenerationStep.FUNCTION_NAME
 
         if step == GenerationStep.FUNCTION_NAME:
-
             next_token = select_token_for_function_name(
                 input_ids, vocabulary, name_function, model)
             str_token = model.decode(next_token)
@@ -102,18 +112,25 @@ def generate_function_call(prompt: dict[str, Any], model: Small_LLM_Model,
                                                 name_function)
 
         if step == GenerationStep.OPEN_PARAMETERS:
+            tensor02 = model.encode(f"Request: {prompt_text}\n"
+                                    f"Choose the parameters from the request.")
+            input_ids.extend(tensor02[0].tolist())
             emit_text(third_structure)
-
+            found = False
             for d in _function:
                 if d['name'] == str_function_name:
+                    found = True
                     break
                 index_function += 1
+
+            if not found:
+                index_function = 0
+
             for k, v in _function[index_function]['parameters'].items():
                 keys_and_types.append((k, v['type']))
                 len_arguments += 1
             if len_arguments == 0:
                 zero_arg = True
-
             step = GenerationStep.ARGUMENTS
 
         if step == GenerationStep.ARGUMENTS:
@@ -220,7 +237,7 @@ def generate_function_call(prompt: dict[str, Any], model: Small_LLM_Model,
                             )
                         emit_token(next_token)
 
-                        max_string_tokens = 35
+                        max_string_tokens = 40
                         string_token_count = 0
                         while True:
                             string_token_count += 1
@@ -236,13 +253,15 @@ def generate_function_call(prompt: dict[str, Any], model: Small_LLM_Model,
                                 )
                             decode_token = model.decode(int(next_token))
                             if (decode_token.endswith('"')):
-                                if (decode_token.startswith('"')
-                                        or decode_token.endswith('\\"')):
+                                if (decode_token.startswith('"')):
                                     next_token = select_token_by_type(
                                         input_ids, vocabulary, model, "quotes"
                                         )
                                     emit_token(next_token)
                                     break
+                                elif (decode_token.endswith('\\"')):
+                                    emit_token(next_token)
+                                    continue
                                 else:
                                     emit_token(next_token)
                                     break

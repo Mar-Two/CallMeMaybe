@@ -143,13 +143,30 @@ the masked array, and `argmax` is used to select the highest-scoring
 valid token. The selected token is then appended to both `input_ids`
 (to continue guiding generation) and the final output structure.
 
+### Two-prompt approach
+
+Rather than using a single prompt for the whole task, the pipeline
+uses two separate prompts: one dedicated to selecting the function
+name, and another for extracting the argument values. Separating
+these concerns helps the small model focus on one task at a time,
+which improves the reliability of both the function choice and the
+argument extraction compared to a single combined prompt.
+
+The available functions are also presented to the model as a
+simplified, readable summary (each function's name and description
+on its own lines) rather than as raw JSON. This reduces the amount
+of structural token noise (`{`, `}`, `"`, `:`) the model has to
+parse, helping it focus on the semantic match between the request
+and each function's description.
+
 ### Per-type generation strategy
 
-- **String**: tokens are generated one by one until a closing quote
-  is produced. Tokens containing structural characters (such as `}`)
-  or escaped quotes (`\"`) are excluded from the valid set, which
-  keeps string termination simple and deterministic. A safety limit
-  caps generation length to prevent runaway repetition loops.
+- **String**: tokens are generated one by one until a non-escaped
+  closing quote is produced. Escaped quotes (`\"`) and braces (`{`,
+  `}`) are allowed as legitimate string content, since string
+  termination is determined solely by the unescaped closing quote.
+  A safety limit caps generation length to prevent runaway
+  repetition loops.
 - **Number / integer**: tokens are generated one by one as long as
   they remain valid digits.
 - **Boolean**: rather than generating freely, the token representing
@@ -195,12 +212,14 @@ role:
   another, so a single malformed entry should not prevent the
   others from being processed.
 
-### Stripping the "returns" field before prompting the model
+### Formatted function summary instead of raw JSON
 
-The `returns` field of each function definition is removed before
-the function list is sent to the model as context. This field is
-irrelevant to the function-selection task and would otherwise
-increase prompt length and token cost without providing any benefit.
+When presenting the available functions to the model for selection,
+the definitions are converted into a readable text summary (name
+and description per function) rather than passed as raw JSON. The
+`returns` field is also omitted, as it is irrelevant to the
+selection task. This keeps the context concise and focused on what
+matters for choosing the right function.
 
 ### Enum-based state machine
 
@@ -289,6 +308,21 @@ when the prompt implies a negative value. This is a limitation of
 the underlying model's confidence on this specific token rather
 than a deliberate constraint in the decoding logic.
 
+### Escaped quotes and structural characters inside strings
+
+Generating string values raised two related issues. First, escaped
+quotes (`\"`) requested as content could be mistaken for the
+string's closing delimiter, since the decoded token ends with `"`.
+Second, the model could "escape" out of a string by emitting a
+closing brace mid-value, producing invalid JSON.
+
+The solution relies on a single deterministic rule: a string ends
+only when a token ends with a quote that is not escaped. With this
+rule in place, escaped quotes and braces can be safely allowed as
+legitimate string content without breaking JSON validity, since
+termination no longer depends on excluding these characters but on
+detecting the unescaped closing quote.
+
 ### Long strings with accented characters
 
 Testing revealed that the model struggles to reliably reverse long
@@ -301,25 +335,6 @@ model's ability to track exact character sequences over long
 spans, not a flaw in the constrained decoding mechanism — the
 output JSON remains valid in every observed case.
 
-### Escaped quotes and structural characters inside strings
-
-Generating string values raised two related issues. First, escaped
-quotes (`\"`) requested as content could be mistaken for the
-string's closing delimiter, since the decoded token ends with `"`.
-Second, the model could "escape" out of a string by emitting a
-closing brace (`}`) mid-value, producing invalid JSON such as an
-unterminated string followed by stray braces.
-
-Several approaches to support these characters as legitimate content
-were attempted, but each introduced new edge cases and instability.
-Since the prompts that would genuinely require a raw quote or brace
-as a replacement value are also the ones where the small model
-already hallucinates and produces semantically meaningless output,
-the final decision was to exclude tokens containing `}` or `\"` from
-the valid set entirely. This keeps string termination simple and
-fully deterministic, prioritizing the project's core guarantee
-(100% valid JSON) over support for marginal cases whose output would
-be incorrect regardless.
 
 ### Runaway repetition on degenerate prompts
 

@@ -21,6 +21,7 @@ class TypeModel(BaseModel):
         type: The type that can be accepted (number, string, boolean, etc.).
     """
 
+    model_config = ConfigDict(extra='forbid')
     type: TypeEnum
 
 
@@ -57,4 +58,5 @@ class PromptModel(BaseModel):
         prompt: The original natural-language request from the user.
     """
 
+    model_config = ConfigDict(extra='forbid')
     prompt: str
