@@ -16,7 +16,7 @@ class GenerationStep(Enum):
     ARGUMENTS = 4
 
 
-def formatted_function(_functions: list) -> None:
+def formatted_function(_functions: list) -> str:
     """Formatted function summary instead of raw JSON.
     Args:
         _functions: a list of functions definitions in JSON format.
